@@ -1,0 +1,101 @@
+The tar folder contains three source files, which have to
+be included into the gromacs-4.5.5 source directory. 
+The gromacs-4.5.5 code is available from www.gromacs.org.
+Please cite : B. Hess, C. Kutzner, D. van der Spoel, and E. Lindahl, J. Chem.
+Theory Comput. 4, 435–447 (2008).
+E. K. Peter, J. Cerny, J. Mol. Sci. 20, 370 (2019).
+
+The three source files should be copied to the following 
+directories of gromacs-4.5.5 :
+
+md.c -> gromacs-4.5.5/src/kernel/
+domdec.c -> gromacs-4.5.5/src/mdlib/
+domdec.h -> gromacs-4.5.5/include/
+
+We configured the Makefiles using :
+
+./configure --enable-mpi --enable-double --prefix=/path-to-core-md-code/ .
+
+We used a local version of fftw3 and set the local paths using
+export LDFLAGS=-L/path-to-fftw3/lib/ and export CPPFLAGS=-I/path-to-fftw3/include/.
+We then ran the command make install-mdrun to generate the executable on 
+/path-to-core-md-code/bin/mdrun_d .
+
+
+In the run-example, we use an external input file with a fixed name called
+'minput'. The file minput has to exist in the simulation folder, from which 
+the simulation gets started. The file 'minput' contains three lines :
+
+1st line, integer : index of the first atom on which the core md algorithm
+is applied.
+2nd line, integer : index of the last atom on which the core md algorithm
+is applied.
+3rd line, float   : The value of the energy parameter W. A default parameter
+should lie in the range from > 0 to 5 kJ/mol. 
+
+4th line : time-constant a
+5th line : time-constant b
+6th line : coupling
+7.       : number of replicas
+8.       : beta_1
+9.       : beta_2
+10.      : stepsize_alpha
+11.      : range_alpha
+12.      : Delta_T
+13.      : epsilon
+14.      : epsilon_md
+15.      : tau_c
+16.      : probability_input
+Following : Implicit solvent parameters, not needed
+
+CODE : minput : md.c :
+
+    fscanf(fp,"%d\n",&dstart);
+    fscanf(fp,"%d\n",&dend);
+    fscanf(fp,"%lg\n",&WA);
+    fscanf(fp,"%d\n",&tau_a);
+    fscanf(fp,"%d\n",&tau2_a); // if tau2_a == 0, replica based path-sampling switched off
+    fscanf(fp,"%lg\n",&diff_t);
+    fscanf(fp,"%d\n",&number_of_replicas);
+    if(fscanf(fp,"%lg\n",&beta2)==1) printf("%s\t%lg\n","beta on ",beta2);
+    if(fscanf(fp,"%lg\n",&beta3)==1) printf("%s\t%lg\n","beta3 ",beta3);
+    fscanf(fp,"%lg\n",&stepsize_alpha);
+    fscanf(fp,"%lg\n",&range_alpha);
+    if(fscanf(fp,"%lg",&wt_meta_delta_t)==1)
+    printf("%s\t%lg\n","wt-meta on",wt_meta_delta_t);
+    if(fscanf(fp,"%d\n",&p)==1) printf("%s\t%d\n","p set",p);
+    fscanf(fp,"%lg\n",&epsilon);
+    fscanf(fp,"%lg\n",&epsilon_md);
+    fscanf(fp,"%d\n",&tau_c); // if tau_c == 0, the search for rdf-based potentials of mean force is switched off
+    fscanf(fp,"%lg\n",&probability_input);
+    if(fscanf(fp,"%lg\n",&rf_factor)==1) printf("%lg\t%s\n",rf_factor," rf_factor");
+    if(fscanf(fp,"%d\n",&num_grid)==1) printf("%d\t%s\n",num_grid," num_grid ");
+    if(fscanf(fp,"%lg\n",&epsilon_sol)==1) printf("%lg\t%s\n",epsilon_sol," epsilon_sol ");  
+    if(fscanf(fp,"%d\n",&timeframe_sol)==1) printf("%s\t%d\n"," timeframe_sol ", timeframe_sol);
+    if(fscanf(fp,"%d\n",&density_boolean)==1) {
+
+     if(density_boolean == 1) {
+        printf("%s\n","density-sampling on - replica sampling switched off");
+        };
+    };
+
+The restraint file should exist in the simulation folder. It is called restraint_data.dat.
+It contains a list with indices and one restraint distance.
+
+restraint_data.dat :
+
+index_a index_b d_0
+index_a2 index_b2 d_02
+.          .      .
+.          .      .
+.          .      .
+
+The tar folder contains additional folders for the two 
+validation cases of TrpCage and dialanine. Each folder contains : an additional 
+run-input file (named minput) and an mdp run-input file, the 
+topology and the starting structure. 
+
+We executed the code by : mpirun -np NUMBER_OF_CORES /path-to-core-md-code/bin/mdrun_d
+-v -s topol.tpr -deffnm trajectory_
+
+
